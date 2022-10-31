@@ -3,61 +3,34 @@ library(rvest)
 
 root_url <- "https://www.etsy.com/shop/LaserTree"
 
-# root_html <- rvest::read_html(root_url)
-#
-# products <- root_html |>
-#   html_elements(css = "div[data-listing-id]")
-#
-# imgs <- products |>
-#   html_elements(css = "img")
-#
-# links <- products |>
-#   html_elements(css = "a")
-#
-#
-#
-# expected_rows <- length(imgs)
-#
-# links1 <- imgs |>
-#   html_attr("src")
-#
-# links2 <- imgs |>
-#   html_attr("data-src")
-#
-# links <- c(links1, links2)
-# links <- links[!is.na(links)]
-#
-# returned_rows <- length(links)
-#
-# expected_rows == returned_rows
-#
-# links
-
-
-# for(i in 1:3) {
-#   url <- str_c(root_url, "?page=", i, sep = "")
-#   html <- read_html(url)
-#
-#   products <- html |>
-#     html_elements(css = "div[data-listing-id]")
-#
-#   imgs <- products |>
-#     html_elements(css = "img")
-#
-#   links <- products |>
-#     html_elements(css = "a")
-# }
-
 
 get_product_links <- function(html) {
-  html |>
+  links <- html |>
     html_elements(css = "div[data-listing-id]") |>
-    html_elements(css = "a")
+    html_elements(css = "a") |>
+    html_attr("href")
+
+  return(links)
 }
 
-get_product_details <- function() {
 
+get_product_details <- function(links) {
+  links |>
+    map(read_html)
+
+  data <- tibble()
+
+  data$name <- links |>
+    map(~html_element(., css = "h1[data-buy-box-listing-title]") |> html_text2()) |>
+    unlist()
+
+  data$price <- links |>
+    map(~html_element(., xpath = '//*[@id="listing-page-cart"]/div[3]/div/div[1]/div[1]/div[1]/div/div[1]/p/span[2]') |> html_text2()) |>
+    unlist()
+
+  return(data)
 }
+
 
 get_store_products <- function(root_url) {
   flag <- TRUE
@@ -71,7 +44,7 @@ get_store_products <- function(root_url) {
       get_product_links(html)
     )
 
-    if (inherits(links, "error")) {
+    if (length(links) == 0L || inherits(links, "error")) {
       flag <- FALSE
       next()
     } else {
@@ -79,9 +52,15 @@ get_store_products <- function(root_url) {
     }
 
     i <- i + 1
+    next()
   }
 
-  return(all_links)
+  all_links <- all_links |>
+    flatten()
+
+  product_details <- get_product_details(all_links)
+
+  return(product_details)
 }
 
 test <- get_store_products(root_url)

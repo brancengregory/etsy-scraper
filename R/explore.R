@@ -15,18 +15,33 @@ get_product_links <- function(html) {
 
 
 get_product_details <- function(links) {
-  links |>
+  links <- links |>
     map(read_html)
 
-  data <- tibble()
-
-  data$name <- links |>
+  name <- links |>
     map(~html_element(., css = "h1[data-buy-box-listing-title]") |> html_text2()) |>
     unlist()
 
-  data$price <- links |>
-    map(~html_element(., xpath = '//*[@id="listing-page-cart"]/div[3]/div/div[1]/div[1]/div[1]/div/div[1]/p/span[2]') |> html_text2()) |>
+  price <- links |>
+    map(~html_element(., xpath = '//*[@id="listing-page-cart"]/div[3]/div/div[1]/div[1]/div[1]/div/div[1]/p') |>
+          html_text2()) |>
     unlist()
+
+  data <- tibble(
+    name = name,
+    price = price
+  ) |>
+    mutate(
+      price = map_dbl(
+        price,
+        ~str_match(
+          .,
+          "(?:Price: )?(?:\\$)?(.*)(?:\\+)"
+        ) |>
+        last() |>
+        as.numeric()
+      )
+    )
 
   return(data)
 }

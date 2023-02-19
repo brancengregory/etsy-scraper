@@ -19,12 +19,12 @@ get_product_details <- function(links) {
     map(read_html)
 
   name <- links |>
-    map(~html_element(., css = "h1[data-buy-box-listing-title]") |> html_text2()) |>
+    map(~ html_element(., css = "h1[data-buy-box-listing-title]") |> html_text2()) |>
     unlist()
 
   price <- links |>
-    map(~html_element(., xpath = '//*[@id="listing-page-cart"]/div[3]/div/div[1]/div[1]/div[1]/div/div[1]/p') |>
-          html_text2()) |>
+    map(~ html_element(., xpath = '//*[@id="listing-page-cart"]/div[3]/div/div[1]/div[1]/div[1]/div/div[1]/p') |>
+      html_text2()) |>
     unlist()
 
   data <- tibble(
@@ -34,12 +34,12 @@ get_product_details <- function(links) {
     mutate(
       price = map_dbl(
         price,
-        ~str_match(
+        ~ str_match(
           .,
           "(?:Price: )?(?:\\$)?(.*)(?:\\+)"
         ) |>
-        last() |>
-        as.numeric()
+          last() |>
+          as.numeric()
       )
     )
 
@@ -51,7 +51,7 @@ get_store_products <- function(root_url) {
   flag <- TRUE
   i <- 1
   all_links <- list()
-  while(flag) {
+  while (flag) {
     url <- str_c(root_url, "?page=", i, sep = "")
     html <- read_html(url)
 
@@ -80,4 +80,32 @@ get_store_products <- function(root_url) {
 
 test <- get_store_products(root_url)
 
+df <- test |>
+  mutate(
+    product_cake_topper = str_detect(
+      name,
+      "(?i)topper"
+    ),
+    product_ornament = str_detect(
+      name,
+      "(?i)ornament"
+    ),
+    product_book = str_detect(
+      name,
+      "(?i)book"
+    ),
+    product_upgrade = str_detect(
+      name,
+      "(?i)(rush|upgrade|extra)"
+    )
+  ) |>
+  pivot_longer(
+    cols = starts_with("product_"),
+    names_to = "type",
+    names_pattern = "product_(.*)"
+  ) |>
+  filter(value == T) |>
+  select(-value)
 
+# df |>
+#   write_csv("data/products.csv")
